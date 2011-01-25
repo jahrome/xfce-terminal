@@ -175,6 +175,8 @@ static void            terminal_window_action_set_title              (GtkAction 
                                                                       TerminalWindow         *window);
 static void            terminal_window_action_reset                  (GtkAction              *action,
                                                                       TerminalWindow         *window);
+static void            terminal_window_action_toggle_inactivity      (GtkAction              *action,
+                                                                      TerminalWindow         *window);
 static void            terminal_window_action_reset_and_clear        (GtkAction              *action,
                                                                       TerminalWindow         *window);
 static void            terminal_window_action_contents               (GtkAction              *action,
@@ -231,6 +233,7 @@ static const GtkActionEntry action_entries[] =
     { "set-title", NULL, N_ ("_Set Title..."), NULL, N_ ("Set a custom title for the current tab"), G_CALLBACK (terminal_window_action_set_title), },
     { "reset", GTK_STOCK_REFRESH, N_ ("_Reset"), NULL, N_ ("Reset"), G_CALLBACK (terminal_window_action_reset), },
     { "reset-and-clear", GTK_STOCK_CLEAR, N_ ("Reset and C_lear"), NULL, N_ ("Reset and clear"), G_CALLBACK (terminal_window_action_reset_and_clear), },
+    { "inactivity", NULL, N_ ("Monitor _Inactivity"), NULL, N_ ("Toggle inactivity monitoring"), G_CALLBACK (terminal_window_action_toggle_inactivity), },
   { "go-menu", NULL, N_ ("_Go"), NULL, NULL, NULL, },
     { "prev-tab", GTK_STOCK_GO_BACK, N_ ("_Previous Tab"), NULL, N_ ("Switch to previous tab"), G_CALLBACK (terminal_window_action_prev_tab), },
     { "next-tab", GTK_STOCK_GO_FORWARD, N_ ("_Next Tab"), NULL, N_ ("Switch to next tab"), G_CALLBACK (terminal_window_action_next_tab), },
@@ -807,6 +810,9 @@ terminal_window_notebook_page_switched (GtkNotebook     *notebook,
 
       /* reset the activity counter */
       terminal_screen_reset_activity (active);
+
+      /* reset the inactivity counter */
+      terminal_screen_reset_inactivity (active);
 
       /* set the new geometry widget */
       if (G_LIKELY (!was_null))
@@ -1577,6 +1583,16 @@ terminal_window_action_set_title (GtkAction      *action,
 
       gtk_widget_show (dialog);
     }
+}
+
+
+
+static void
+terminal_window_action_toggle_inactivity (GtkAction      *action,
+                                   TerminalWindow *window)
+{
+  if (G_LIKELY (window->active != NULL))
+    terminal_screen_toggle_inactivity_monitor (window->active);
 }
 
 

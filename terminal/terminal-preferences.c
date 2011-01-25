@@ -70,6 +70,7 @@ enum
   PROP_ACCEL_SWITCH_TO_TAB8,
   PROP_ACCEL_SWITCH_TO_TAB9,
   PROP_ACCEL_CONTENTS,
+  PROP_ACCEL_INACTIVITY,
   PROP_BACKGROUND_MODE,
   PROP_BACKGROUND_IMAGE_FILE,
   PROP_BACKGROUND_IMAGE_STYLE,
@@ -132,7 +133,10 @@ enum
   PROP_TERM,
   PROP_WORD_CHARS,
   PROP_TAB_ACTIVITY_COLOR,
+  PROP_TAB_BELL_COLOR,
+  PROP_TAB_INACTIVITY_COLOR,
   PROP_TAB_ACTIVITY_TIMEOUT,
+  PROP_TAB_INACTIVITY_TIMEOUT,
   N_PROPERTIES,
 };
 
@@ -244,6 +248,15 @@ transform_string_to_uint (const GValue *src,
 
 
 static void
+transform_string_to_int (const GValue *src,
+                          GValue       *dst)
+{
+  g_value_set_int (dst, strtoul (g_value_get_string (src), NULL, 10));
+}
+
+
+
+static void
 transform_string_to_enum (const GValue *src,
                           GValue       *dst)
 {
@@ -283,6 +296,8 @@ terminal_preferences_class_init (TerminalPreferencesClass *klass)
     g_value_register_transform_func (G_TYPE_STRING, GDK_TYPE_COLOR, transform_string_to_color);
   if (!g_value_type_transformable (G_TYPE_STRING, G_TYPE_DOUBLE))
     g_value_register_transform_func (G_TYPE_STRING, G_TYPE_DOUBLE, transform_string_to_double);
+  if (!g_value_type_transformable (G_TYPE_STRING, G_TYPE_INT))
+    g_value_register_transform_func (G_TYPE_STRING, G_TYPE_INT, transform_string_to_int);
   if (!g_value_type_transformable (G_TYPE_STRING, G_TYPE_UINT))
     g_value_register_transform_func (G_TYPE_STRING, G_TYPE_UINT, transform_string_to_uint);
   if (!g_value_type_transformable (G_TYPE_STRING, GTK_TYPE_POSITION_TYPE))
@@ -609,6 +624,17 @@ terminal_preferences_class_init (TerminalPreferencesClass *klass)
                                                         EXO_PARAM_READWRITE));
 
   /**
+   * TerminalPreferences:accel-inactivity:
+   **/
+  g_object_class_install_property (gobject_class,
+                                   PROP_ACCEL_INACTIVITY,
+                                   g_param_spec_string ("accel-inactivity",
+                                                        _("Inactivity"),
+                                                        "AccelInactivity",
+                                                        "<Shift><Control>i",
+                                                        EXO_PARAM_READWRITE));
+
+  /**
    * TerminalPreferences:background-mode:
    **/
   g_object_class_install_property (gobject_class,
@@ -924,15 +950,49 @@ terminal_preferences_class_init (TerminalPreferencesClass *klass)
                                                         "TabActivityColor",
                                                         "#afff00000000",
                                                         EXO_PARAM_READWRITE));
+
+  /**
+   * TerminalPreferences:tab-bell-color:
+   **/
+  g_object_class_install_property (gobject_class,
+                                   PROP_TAB_BELL_COLOR,
+                                   g_param_spec_string ("tab-bell-color",
+                                                        "tab-bell-color",
+                                                        "TabBellColor",
+                                                        "#0000afff0000",
+                                                        EXO_PARAM_READWRITE));
+
+  /**
+   * TerminalPreferences:tab-inactivity-color:
+   **/
+  g_object_class_install_property (gobject_class,
+                                   PROP_TAB_INACTIVITY_COLOR,
+                                   g_param_spec_string ("tab-inactivity-color",
+                                                        "tab-inactivity-color",
+                                                        "TabInactivityColor",
+                                                        "#00000000afff",
+                                                        EXO_PARAM_READWRITE));
+
   /**
    * TerminalPreferences:tab-activity-timeout:
    **/
   g_object_class_install_property (gobject_class,
                                    PROP_TAB_ACTIVITY_TIMEOUT,
-                                   g_param_spec_uint ("tab-activity-timeout",
+                                   g_param_spec_int ("tab-activity-timeout",
                                                       "tab-activity-timeout",
                                                       "TabActivityTimeout",
-                                                      0, 30, 2,
+                                                      -1, 30, 2,
+                                                      EXO_PARAM_READWRITE));
+
+  /**
+   * TerminalPreferences:tab-inactivity-timeout:
+   **/
+  g_object_class_install_property (gobject_class,
+                                   PROP_TAB_INACTIVITY_TIMEOUT,
+                                   g_param_spec_uint ("tab-inactivity-timeout",
+                                                      "tab-inactivity-timeout",
+                                                      "TabInactivityTimeout",
+                                                      1, 30, 5,
                                                       EXO_PARAM_READWRITE));
 
   /**
