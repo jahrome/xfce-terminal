@@ -106,6 +106,8 @@ static void       terminal_screen_update_title                  (TerminalScreen 
 static void       terminal_screen_update_word_chars             (TerminalScreen        *screen);
 static void       terminal_screen_vte_child_exited              (VteTerminal           *terminal,
                                                                  TerminalScreen        *screen);
+static void       terminal_screen_bell_notification             (VteTerminal           *terminal,
+                                                                 TerminalScreen        *screen);
 static void       terminal_screen_vte_eof                       (VteTerminal           *terminal,
                                                                  TerminalScreen        *screen);
 static GtkWidget *terminal_screen_vte_get_context_menu          (TerminalWidget        *widget,
@@ -153,7 +155,10 @@ struct _TerminalScreen
   guint                launch_idle_id;
 
   guint                activity_timeout_id;
+  guint                inactivity_timeout_id;
   time_t               last_size_change;
+  gboolean             bell_notification;
+  gboolean             monitor_inactivity;
 };
 
 
@@ -234,10 +239,13 @@ terminal_screen_init (TerminalScreen *screen)
 {
   screen->working_directory = g_get_current_dir ();
   screen->session_id = ++screen_last_session_id;
+  screen->bell_notification = FALSE;
+  screen->monitor_inactivity = FALSE;
 
   screen->terminal = g_object_new (TERMINAL_TYPE_WIDGET, NULL);
   g_object_connect (G_OBJECT (screen->terminal),
                     "signal::child-exited", G_CALLBACK (terminal_screen_vte_child_exited), screen,
+                    "signal::beep", G_CALLBACK (terminal_screen_bell_notification), screen,
                     "signal::eof", G_CALLBACK (terminal_screen_vte_eof), screen,
                     "signal::context-menu", G_CALLBACK (terminal_screen_vte_get_context_menu), screen,
                     "signal::selection-changed", G_CALLBACK (terminal_screen_vte_selection_changed), screen,
@@ -1020,6 +1028,15 @@ terminal_screen_update_word_chars (TerminalScreen *screen)
 
 
 static void
+terminal_screen_bell_notification (VteTerminal    *terminal,
+                                   TerminalScreen *screen)
+{
+  screen->bell_notification = TRUE;
+}
+
+
+
+static void
 terminal_screen_vte_child_exited (VteTerminal    *terminal,
                                   TerminalScreen *screen)
 {
@@ -1140,6 +1157,29 @@ terminal_screen_reset_activity_timeout (gpointer user_data)
                         GTK_STATE_ACTIVE, NULL);
   GDK_THREADS_LEAVE ();
 
+  /* reset bell notification pending */
+  TERMINAL_SCREEN (user_data)->bell_notification = FALSE;
+
+  return FALSE;
+}
+
+
+
+static gboolean
+terminal_screen_reset_inactivity_timeout (gpointer user_data)
+{
+  gboolean has_fg;
+  GdkColor color;
+
+  has_fg = terminal_preferences_get_color (TERMINAL_SCREEN(user_data)->preferences,
+                                           "tab-inactivity-color", &color);
+
+  /* reset label color */
+  GDK_THREADS_ENTER ();
+  gtk_widget_modify_fg (TERMINAL_SCREEN (user_data)->tab_label,
+                        GTK_STATE_ACTIVE, has_fg ? &color : NULL);
+  GDK_THREADS_LEAVE ();
+
   return FALSE;
 }
 
@@ -1153,11 +1193,31 @@ terminal_screen_reset_activity_destroyed (gpointer user_data)
 
 
 
+void
+terminal_screen_reset_inactivity (TerminalScreen *screen)
+{
+  terminal_return_if_fail (TERMINAL_IS_SCREEN (screen));
+
+  terminal_screen_reset_activity_timeout (screen);
+  if (screen->inactivity_timeout_id != 0)
+    g_source_remove (screen->inactivity_timeout_id);
+}
+
+
+
+static void
+terminal_screen_reset_inactivity_destroyed (gpointer user_data)
+{
+  TERMINAL_SCREEN (user_data)->inactivity_timeout_id = 0;
+}
+
+
+
 static void
 terminal_screen_vte_window_contents_changed (VteTerminal    *terminal,
                                              TerminalScreen *screen)
 {
-  guint    timeout;
+  gint    timeout;
   GdkColor color;
   gboolean has_fg;
 
@@ -1174,22 +1234,43 @@ terminal_screen_vte_window_contents_changed (VteTerminal    *terminal,
 
   /* get the reset time, leave if this feature is disabled */
   g_object_get (G_OBJECT (screen->preferences), "tab-activity-timeout", &timeout, NULL);
-  if (timeout < 1)
+  if (timeout == 0)
     return;
 
   /* set label color */
-  has_fg = terminal_preferences_get_color (screen->preferences, "tab-activity-color", &color);
-  gtk_widget_modify_fg (screen->tab_label, GTK_STATE_ACTIVE, has_fg ? &color : NULL);
+  if (screen->monitor_inactivity)
+    {
+      terminal_screen_reset_inactivity (screen);
 
-  /* stop running reset timeout */
-  if (screen->activity_timeout_id != 0)
-    g_source_remove (screen->activity_timeout_id);
+      g_object_get (G_OBJECT (screen->preferences), "tab-inactivity-timeout", &timeout, NULL);
+      screen->inactivity_timeout_id = g_timeout_add_seconds_full (G_PRIORITY_DEFAULT, timeout,
+                                          terminal_screen_reset_inactivity_timeout,
+                                          screen, terminal_screen_reset_inactivity_destroyed);
+    }
+  else
+    {
+      if (screen->bell_notification)
+        {
+          has_fg = terminal_preferences_get_color (screen->preferences, "tab-bell-color", &color);
+          gtk_widget_modify_fg (screen->tab_label, GTK_STATE_ACTIVE, has_fg ? &color : NULL);
+        }
+      else
+        {
+          has_fg = terminal_preferences_get_color (screen->preferences, "tab-activity-color", &color);
+          gtk_widget_modify_fg (screen->tab_label, GTK_STATE_ACTIVE, has_fg ? &color : NULL);
+        }
 
-  /* start new timeout to unset the activity */
-  screen->activity_timeout_id =
-      g_timeout_add_seconds_full (G_PRIORITY_DEFAULT, timeout,
-                                  terminal_screen_reset_activity_timeout,
-                                  screen, terminal_screen_reset_activity_destroyed);
+      /* stop running reset timeout */
+      if (screen->activity_timeout_id != 0)
+        g_source_remove (screen->activity_timeout_id);
+
+      /* start new timeout to unset the activity */
+      if (timeout != -1)
+      screen->activity_timeout_id =
+          g_timeout_add_seconds_full (G_PRIORITY_DEFAULT, timeout,
+                                      terminal_screen_reset_activity_timeout,
+                                       screen, terminal_screen_reset_activity_destroyed);
+    }
 }
 
 
@@ -1809,6 +1890,15 @@ terminal_screen_reset (TerminalScreen *screen,
 
 
 
+void
+terminal_screen_toggle_inactivity_monitor (TerminalScreen *screen)
+{
+  terminal_return_if_fail (TERMINAL_IS_SCREEN (screen));
+  screen->monitor_inactivity = screen->monitor_inactivity ? FALSE : TRUE;
+}
+
+
+
 /**
  * terminal_screen_im_append_menuitems:
  * @screen    : A #TerminalScreen.
@@ -1876,11 +1966,9 @@ terminal_screen_reset_activity (TerminalScreen *screen)
 {
   terminal_return_if_fail (TERMINAL_IS_SCREEN (screen));
 
+  terminal_screen_reset_activity_timeout (screen);
   if (screen->activity_timeout_id != 0)
-    {
-      g_source_remove (screen->activity_timeout_id);
-      terminal_screen_reset_activity_timeout (screen);
-    }
+    g_source_remove (screen->activity_timeout_id);
 }
 
 

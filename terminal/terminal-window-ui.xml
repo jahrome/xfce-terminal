@@ -35,10 +35,13 @@
       <menuitem action="set-title" />
       <menuitem action="reset" />
       <menuitem action="reset-and-clear" />
+      <menuitem action="inactivity" />
     </menu>
     <menu action="go-menu">
       <menuitem action="prev-tab" />
       <menuitem action="next-tab" />
+      <menuitem action="tab-move-left" />
+      <menuitem action="tab-move-right" />
       <separator />
       <placeholder name="placeholder-tab-items" />
     </menu>

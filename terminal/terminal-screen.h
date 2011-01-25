@@ -77,12 +77,16 @@ void         terminal_screen_paste_primary                (TerminalScreen *scree
 void         terminal_screen_reset                        (TerminalScreen *screen,
                                                            gboolean        clear);
 
+void         terminal_screen_toggle_inactivity_monitor    (TerminalScreen *screen);
+
 void         terminal_screen_im_append_menuitems          (TerminalScreen *screen,
                                                            GtkMenuShell   *menushell);
 
 GSList      *terminal_screen_get_restart_command          (TerminalScreen *screen);
 
 void         terminal_screen_reset_activity               (TerminalScreen *screen);
+
+void         terminal_screen_reset_inactivity             (TerminalScreen *screen);
 
 GtkWidget   *terminal_screen_get_tab_label                (TerminalScreen *screen);
 
