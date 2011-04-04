@@ -169,6 +169,10 @@ static void            terminal_window_action_prev_tab               (GtkAction 
                                                                       TerminalWindow         *window);
 static void            terminal_window_action_next_tab               (GtkAction              *action,
                                                                       TerminalWindow         *window);
+static void            terminal_window_tab_move_left                 (GtkAction              *action,
+                                                                      TerminalWindow         *window);
+static void            terminal_window_tab_move_right                (GtkAction              *action,
+                                                                      TerminalWindow         *window);
 static void            terminal_window_action_goto_tab               (GtkRadioAction         *action,
                                                                       GtkNotebook            *notebook);
 static void            terminal_window_action_set_title              (GtkAction              *action,
@@ -237,6 +241,8 @@ static const GtkActionEntry action_entries[] =
   { "go-menu", NULL, N_ ("_Go"), NULL, NULL, NULL, },
     { "prev-tab", GTK_STOCK_GO_BACK, N_ ("_Previous Tab"), NULL, N_ ("Switch to previous tab"), G_CALLBACK (terminal_window_action_prev_tab), },
     { "next-tab", GTK_STOCK_GO_FORWARD, N_ ("_Next Tab"), NULL, N_ ("Switch to next tab"), G_CALLBACK (terminal_window_action_next_tab), },
+    { "tab-move-left", NULL, N_ ("Move Tab _Left"), NULL, N_ ("Move Tab Left"), G_CALLBACK (terminal_window_tab_move_left), },
+    { "tab-move-right", NULL, N_ ("Move Tab _Right"), NULL, N_ ("Move Tab Right"), G_CALLBACK (terminal_window_tab_move_right), },
   { "help-menu", NULL, N_ ("_Help"), NULL, NULL, NULL, },
     { "contents", GTK_STOCK_HELP, N_ ("_Contents"), NULL, N_ ("Display help contents"), G_CALLBACK (terminal_window_action_contents), },
     { "report-bug", TERMINAL_STOCK_REPORTBUG, N_ ("_Report a bug"), NULL, N_ ("Report a bug in Terminal"), G_CALLBACK (terminal_window_action_report_bug), },
@@ -1477,6 +1483,40 @@ terminal_window_action_next_tab (GtkAction       *action,
   n_pages = gtk_notebook_get_n_pages (GTK_NOTEBOOK (window->notebook));
   gtk_notebook_set_current_page (GTK_NOTEBOOK (window->notebook),
                                  (page_num + 1) % n_pages);
+}
+
+
+
+static void
+terminal_window_tab_move_left (GtkAction       *action,
+                               TerminalWindow  *window)
+{
+  GtkNotebook *notebook = GTK_NOTEBOOK (window->notebook);
+  gint page_num,last_page;
+  GtkWidget *page;
+
+  page_num = gtk_notebook_get_current_page (notebook);
+  last_page = gtk_notebook_get_n_pages (notebook) - 1;
+  page = gtk_notebook_get_nth_page (notebook, page_num);
+
+  gtk_notebook_reorder_child (notebook, page, page_num == 0 ? last_page : page_num - 1);
+}
+
+
+
+static void
+terminal_window_tab_move_right (GtkAction       *action,
+                                TerminalWindow  *window)
+{
+  GtkNotebook *notebook = GTK_NOTEBOOK (window->notebook);
+  gint page_num,last_page;
+  GtkWidget *page;
+
+  page_num = gtk_notebook_get_current_page (notebook);
+  last_page = gtk_notebook_get_n_pages (notebook) - 1;
+  page = gtk_notebook_get_nth_page (notebook, page_num);
+
+  gtk_notebook_reorder_child (notebook, page, page_num == last_page ? 0 : page_num + 1);
 }
 
 

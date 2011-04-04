@@ -60,6 +60,8 @@ enum
   PROP_ACCEL_RESET_AND_CLEAR,
   PROP_ACCEL_PREV_TAB,
   PROP_ACCEL_NEXT_TAB,
+  PROP_ACCEL_TAB_MOVE_LEFT,
+  PROP_ACCEL_TAB_MOVE_RIGHT,
   PROP_ACCEL_SWITCH_TO_TAB1,
   PROP_ACCEL_SWITCH_TO_TAB2,
   PROP_ACCEL_SWITCH_TO_TAB3,
@@ -511,6 +513,28 @@ terminal_preferences_class_init (TerminalPreferencesClass *klass)
                                                         _("Next Tab"),
                                                         "AccelNextTab",
                                                         "<Control>Page_Down",
+                                                        EXO_PARAM_READWRITE));
+
+  /**
+   * TerminalPreferences:accel-tab-move-left:
+   **/
+  g_object_class_install_property (gobject_class,
+                                   PROP_ACCEL_TAB_MOVE_LEFT,
+                                   g_param_spec_string ("accel-tab-move-left",
+                                                        _("Move Tab Left"),
+                                                        "AccelTabMoveLeft",
+                                                        "<Shift><Control>Page_Up",
+                                                        EXO_PARAM_READWRITE));
+
+  /**
+   * TerminalPreferences:accel-tab-move-right:
+   **/
+  g_object_class_install_property (gobject_class,
+                                   PROP_ACCEL_TAB_MOVE_RIGHT,
+                                   g_param_spec_string ("accel-tab-move-right",
+                                                        _("Move Tab Right"),
+                                                        "AccelTabMoveRight",
+                                                        "<Shift><Control>Page_Down",
                                                         EXO_PARAM_READWRITE));
 
   /**
